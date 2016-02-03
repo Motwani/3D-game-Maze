@@ -13,218 +13,25 @@
 
 using namespace std;
 int total = 0 ;
-struct VAO {
-    GLuint VertexArrayID;
-    GLuint VertexBuffer;
-    GLuint ColorBuffer;
-
-    GLenum PrimitiveMode;
-    GLenum FillMode;
-    int NumVertices;
-};
-typedef struct VAO VAO;
-
-struct GLMatrices {
-	glm::mat4 projection;
-	glm::mat4 model;
-	glm::mat4 view;
-	GLuint MatrixID;
-} Matrices;
-
-struct cube_array {
-  VAO *cube;
-};
-typedef struct cube_array cube_array;
-
-cube_array cube_obj[120];
-
-struct border_array {
-  VAO *border;
-};
-typedef struct border_array border_array;
-
-border_array border_obj[10];
-
-float q,w;
-GLuint programID;
-
-float x,y,z,length,breadth,height;
-/* Function to load Shaders - Use it as it is */
-GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
-
-	// Create the shaders
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-	// Read the Vertex Shader code from the file
-	std::string VertexShaderCode;
-	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-	if(VertexShaderStream.is_open())
-	{
-		std::string Line = "";
-		while(getline(VertexShaderStream, Line))
-			VertexShaderCode += "\n" + Line;
-		VertexShaderStream.close();
-	}
-
-	// Read the Fragment Shader code from the file
-	std::string FragmentShaderCode;
-	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-	if(FragmentShaderStream.is_open()){
-		std::string Line = "";
-		while(getline(FragmentShaderStream, Line))
-			FragmentShaderCode += "\n" + Line;
-		FragmentShaderStream.close();
-	}
-
-	GLint Result = GL_FALSE;
-	int InfoLogLength;
-
-	// Compile Vertex Shader
-	printf("Compiling shader : %s\n", vertex_file_path);
-	char const * VertexSourcePointer = VertexShaderCode.c_str();
-	glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
-	glCompileShader(VertexShaderID);
-
-	// Check Vertex Shader
-	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	std::vector<char> VertexShaderErrorMessage(InfoLogLength);
-	glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-	fprintf(stdout, "%s\n", &VertexShaderErrorMessage[0]);
-
-	// Compile Fragment Shader
-	printf("Compiling shader : %s\n", fragment_file_path);
-	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-	glCompileShader(FragmentShaderID);
-
-	// Check Fragment Shader
-	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	std::vector<char> FragmentShaderErrorMessage(InfoLogLength);
-	glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-	fprintf(stdout, "%s\n", &FragmentShaderErrorMessage[0]);
-
-	// Link the program
-	fprintf(stdout, "Linking program\n");
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
-	glLinkProgram(ProgramID);
-
-	// Check the program
-	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	std::vector<char> ProgramErrorMessage( max(InfoLogLength, int(1)) );
-	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-	fprintf(stdout, "%s\n", &ProgramErrorMessage[0]);
-
-	glDeleteShader(VertexShaderID);
-	glDeleteShader(FragmentShaderID);
-
-	return ProgramID;
-}
-
-static void error_callback(int error, const char* description)
-{
-    fprintf(stderr, "Error: %s\n", description);
-}
-
-void quit(GLFWwindow *window)
-{
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    exit(EXIT_SUCCESS);
-}
-
-
-/* Generate VAO, VBOs and return VAO handle */
-struct VAO* create3DObject (GLenum primitive_mode, int numVertices, const GLfloat* vertex_buffer_data, const GLfloat* color_buffer_data, GLenum fill_mode=GL_FILL)
-{
-    struct VAO* vao = new struct VAO;
-    vao->PrimitiveMode = primitive_mode;
-    vao->NumVertices = numVertices;
-    vao->FillMode = fill_mode;
-
-    // Create Vertex Array Object
-    // Should be done after CreateWindow and before any other GL calls
-    glGenVertexArrays(1, &(vao->VertexArrayID)); // VAO
-    glGenBuffers (1, &(vao->VertexBuffer)); // VBO - vertices
-    glGenBuffers (1, &(vao->ColorBuffer));  // VBO - colors
-
-    glBindVertexArray (vao->VertexArrayID); // Bind the VAO
-    glBindBuffer (GL_ARRAY_BUFFER, vao->VertexBuffer); // Bind the VBO vertices
-    glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), vertex_buffer_data, GL_STATIC_DRAW); // Copy the vertices into VBO
-    glVertexAttribPointer(
-                          0,                  // attribute 0. Vertices
-                          3,                  // size (x,y,z)
-                          GL_FLOAT,           // type
-                          GL_FALSE,           // normalized?
-                          0,                  // stride
-                          (void*)0            // array buffer offset
-                          );
-
-    glBindBuffer (GL_ARRAY_BUFFER, vao->ColorBuffer); // Bind the VBO colors
-    glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), color_buffer_data, GL_STATIC_DRAW);  // Copy the vertex colors
-    glVertexAttribPointer(
-                          1,                  // attribute 1. Color
-                          3,                  // size (r,g,b)
-                          GL_FLOAT,           // type
-                          GL_FALSE,           // normalized?
-                          0,                  // stride
-                          (void*)0            // array buffer offset
-                          );
-
-    return vao;
-}
-
-/* Generate VAO, VBOs and return VAO handle - Common Color for all vertices */
-struct VAO* create3DObject (GLenum primitive_mode, int numVertices, const GLfloat* vertex_buffer_data, const GLfloat red, const GLfloat green, const GLfloat blue, GLenum fill_mode=GL_FILL)
-{
-    GLfloat* color_buffer_data = new GLfloat [3*numVertices];
-    for (int i=0; i<numVertices; i++) {
-        color_buffer_data [3*i] = red;
-        color_buffer_data [3*i + 1] = green;
-        color_buffer_data [3*i + 2] = blue;
-    }
-
-    return create3DObject(primitive_mode, numVertices, vertex_buffer_data, color_buffer_data, fill_mode);
-}
-
-/* Render the VBOs handled by VAO */
-void draw3DObject (struct VAO* vao)
-{
-    // Change the Fill Mode for this object
-    glPolygonMode (GL_FRONT_AND_BACK, vao->FillMode);
-
-    // Bind the VAO to use
-    glBindVertexArray (vao->VertexArrayID);
-
-    // Enable Vertex Attribute 0 - 3d Vertices
-    glEnableVertexAttribArray(0);
-    // Bind the VBO to use
-    glBindBuffer(GL_ARRAY_BUFFER, vao->VertexBuffer);
-
-    // Enable Vertex Attribute 1 - Color
-    glEnableVertexAttribArray(1);
-    // Bind the VBO to use
-    glBindBuffer(GL_ARRAY_BUFFER, vao->ColorBuffer);
-
-    // Draw the geometry !
-    glDrawArrays(vao->PrimitiveMode, 0, vao->NumVertices); // Starting from vertex 0; 3 vertices total -> 1 triangle
-}
+int height_mat[1000][1000]={0};
+int width = 1000;
+int wheight = 1000;
+int x_axis = 0,y_axis = 0;
+GLFWwindow* window;
+#include "important.cpp"
 
 /**************************
  * Customizable functions *
  **************************/
 
-float camera_rotation_angle = 75;
+float camera_rotation_angle = 0;
 float triangle_rot_dir = 1;
 float rectangle_rot_dir = 1;
 bool triangle_rot_status = true;
 bool rectangle_rot_status = true;
 float a = 2;
+float factor = 0;
+int dir = 1;
 /* Executed when a regular key is pressed/released/held-down */
 /* Prefered for Keyboard events */
 #include "keyboard.cpp"
@@ -254,393 +61,8 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
     Matrices.projection = glm::ortho(-150.0f, 150.0f, -150.0f, 150.0f, -150.0f, 150.0f);
 }
 
-VAO *triangle, *cube, *tri,*rect;
-
-// Creates the triangle object used in this sample code
-void createTriangle ()
-{
-  /* ONLY vertices between the bounds specified in glm::ortho will be visible on screen */
-
-  /* Define vertex array as used in glBegin (GL_TRIANGLES) */
-  static const GLfloat vertex_buffer_data [] = {
-    1, 0,0, // vertex 0
-    -1,-1,0, // vertex 1
-    1,-1,0, // vertex 2
-  };
-
-  static const GLfloat color_buffer_data [] = {
-    1,0,0, // color 0
-    0,1,0, // color 1
-    0,0,1, // color 2
-  };
-
-  static const GLfloat vert [] = {
-	  1,0,0,
-	  -1,-1,0,
-	  1,-1.5,0,
-  };
-
-  // create3DObject creates and returns a handle to a VAO that can be used later
-  triangle = create3DObject(GL_TRIANGLES, 3, vertex_buffer_data, color_buffer_data, GL_LINE);
-  tri = create3DObject(GL_TRIANGLES, 3 , vert, color_buffer_data, GL_LINE);
-}
-
-// Creates the rectangle object used in this sample code
-VAO* createCube (float x,float y,float z,float l,float b,float h)
-{
-  // GL3 accepts only Triangles. Quads are not supported
-  GLfloat vertex_buffer_data [] = {
-    x,y,z, // vertex 1
-    x+l,y,z, // vertex 2
-    x+l,y,z+b, // vertex 3
-
-    x+l,y,z+b, // vertex 3
-    x,y,z+b, // vertex 4
-    x,y,z,  // vertex 1
-
-    x+l,y,z,
-    x+l,y+h,z,
-    x+l,y,z+b,
-
-    x+l,y,z+b,
-    x+l,y+h,z+b,
-    x+l,y+h,z,
-
-    x,y+h,z,
-    x+l,y+h,z,
-    x+l,y+h,z+b,
-
-    x+l,y+h,z+b,
-    x,y+h,z+b,
-    x,y+h,z,
-
-    x,y,z+b,
-    x,y+h,z+b,
-    x,y+h,z,
-
-    x,y+h,z,
-    x,y,z+b,
-    x,y,z,
-
-    x,y,z+b,
-    x,y+h,z+b,
-    x+l,y+h,z+b,
-
-    x+l,y+h,z+b,
-    x+l,y,z+b,
-    x,y,z+b,
-
-    x,y,z,
-    x+l,y,z,
-    x+l,y+h,z,
-
-    x+l,y+h,z,
-    x,y+h,z,
-    x,y,z,
-
-
-  };
-
-  static const GLfloat color_buffer_data [] = {
-
-    0.051,0.1961,0.302, // color 1
-    0.051,0.1961,0.302, // color 1
-    0.051,0.1961,0.302, // color 1
-
-    0.051,0.1961,0.302, // color 1
-    0.051,0.1961,0.302, // color 1
-    0.051,0.1961,0.302, // color 1
-
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-
-    0,0.447,0.7373, // color 1
-    0,0.447,0.7373, // color 2
-    0,0.447,0.7373, // color 3
-
-    0,0.447,0.7373, // color 1
-    0,0.447,0.7373, // color 2
-    0,0.447,0.7373, // color 3
-
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-
-    0.1451,0.3608,0.6, // color 1
-    0.1451,0.3608,0.6, // color 1
-    0.1451,0.3608,0.6, // color 1
-
-    0.1451,0.3608,0.6, // color 1
-    0.1451,0.3608,0.6, // color 1
-    0.1451,0.3608,0.6, // color 1
-
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-    0.0588,0.0588,0.2627, // color 1
-
-
-  };
-
-  // create3DObject creates and returns a handle to a VAO that can be used later
-  cube = create3DObject(GL_TRIANGLES, 36, vertex_buffer_data, color_buffer_data, GL_FILL);
-  return cube;
-}
-VAO *player;
-
-VAO* createPlayer (float x,float y,float z,float l,float b,float h)
-{
-  // GL3 accepts only Triangles. Quads are not supported
-  GLfloat vertex_buffer_data [] = {
-    x,y,z, // vertex 1
-    x+l,y,z, // vertex 2
-    x+l,y,z+b, // vertex 3
-
-    x+l,y,z+b, // vertex 3
-    x,y,z+b, // vertex 4
-    x,y,z,  // vertex 1
-
-    x+l,y,z,
-    x+l,y+h,z,
-    x+l,y,z+b,
-
-    x+l,y,z+b,
-    x+l,y+h,z+b,
-    x+l,y+h,z,
-
-    x,y+h,z,
-    x+l,y+h,z,
-    x+l,y+h,z+b,
-
-    x+l,y+h,z+b,
-    x,y+h,z+b,
-    x,y+h,z,
-
-    x,y,z+b,
-    x,y+h,z+b,
-    x,y+h,z,
-
-    x,y+h,z,
-    x,y,z+b,
-    x,y,z,
-
-    x,y,z+b,
-    x,y+h,z+b,
-    x+l,y+h,z+b,
-
-    x+l,y+h,z+b,
-    x+l,y,z+b,
-    x,y,z+b,
-
-    x,y,z,
-    x+l,y,z,
-    x+l,y+h,z,
-
-    x+l,y+h,z,
-    x,y+h,z,
-    x,y,z,
-
-
-  };
-
-  static const GLfloat color_buffer_data [] = {
-
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-    0.9098,0.7725,0.2784, // color 1
-
-
-  };
-
-  // create3DObject creates and returns a handle to a VAO that can be used later
-  player = create3DObject(GL_TRIANGLES, 36, vertex_buffer_data, color_buffer_data, GL_FILL);
-  return player;
-}
-
-float rectangle_rotation = 0;
-float triangle_rotation = 0;
-
-/* Render the scene with openGL */
-/* Edit this function according to your assignment */
-void draw ()
-{
-  // clear the color and depth in the frame buffer
-  glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  // use the loaded shader program
-  // Don't change unless you know what you are doing
-  glUseProgram (programID);
-
-  // Eye - Location of camera. Don't change unless you are sure!!
-  glm::vec3 eye ( 5*cos(camera_rotation_angle*M_PI/180.0f), a, 5*sin(camera_rotation_angle*M_PI/180.0f) );
-  // Target - Where is the camera looking at.  Don't change unless you are sure!!
-  glm::vec3 target (0, 0, 0);
-  // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
-  glm::vec3 up (0, 1, 0);
-
-  // Compute Camera matrix (view)
-   Matrices.view = glm::lookAt( eye, target, up ); // Rotating Camera for 3D
-  //  Don't change unless you are sure!!
-  //Matrices.view = glm::lookAt(glm::vec3(0,0,3), glm::vec3(0,0,0), glm::vec3(0,1,0)); // Fixed camera for 2D (ortho) in XY plane
-
-  // Compute ViewProject matrix as view/camera might not be changed for this frame (basic scenario)
-  //  Don't change unless you are sure!!
-  glm::mat4 VP = Matrices.projection * Matrices.view;
-
-  // Send our transformation to the currently bound shader, in the "MVP" uniform
-  // For each model you render, since the MVP will be different (at least the M part)
-  //  Don't change unless you are sure!!
-  glm::mat4 MVP;	// MVP = Projection * View * Model
-
-  // Load identity to model matrix
-  Matrices.model = glm::mat4(1.0f);
-
-  /* Render your scene */
-  glm::mat4 translatePlayer = glm::translate (glm::vec3(q, 0.0f, w)); // glTranslatef
-  glm::mat4 playerTransform = translatePlayer;
-  Matrices.model *= playerTransform;
-  MVP = VP * Matrices.model; // MVP = p * V * M
-  glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-  draw3DObject(player);
-  //  Don't change unless you are sure!!
-
-  // draw3DObject draws the VAO given to it using current MVP matrix
-  //draw3DObject(triangle);
-  //draw3DObject(tri);
-
-  // Pop matrix to undo transformations till last push matrix instead of recomputing model matrix
-  // glPopMatrix ();
-  Matrices.model = glm::mat4(1.0f);
-
-  //glm::mat4 translateRectangle = glm::translate (glm::vec3(2, 0, 0));        // glTranslatef
-  //glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1)); // rotate about vector (-1,1,1)
-  //Matrices.model *= (translateRectangle * rotateRectangle);
-  MVP = VP * Matrices.model;
-  glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-  // draw3DObject draws the VAO given to it using current MVP matrix
-  for(int i = 0;i<100;i++)
-  if(i != 56 && i != 36 && i != 28)
-  draw3DObject(cube_obj[i].cube);
-
-  // for(int i = 0;i<10;i++)
-  // draw3DObject(border_obj[i].border);
-
-  // Increment angles
-  float increments = 1;
-
-  //camera_rotation_angle++; // Simulating camera rotation
-  triangle_rotation = triangle_rotation + increments*triangle_rot_dir*triangle_rot_status;
-  rectangle_rotation = rectangle_rotation + increments*rectangle_rot_dir*rectangle_rot_status;
-}
-
-/* Initialise glfw window, I/O callbacks and the renderer to use */
-/* Nothing to Edit here */
-GLFWwindow* initGLFW (int width, int height)
-{
-    GLFWwindow* window; // window desciptor/handle
-
-    glfwSetErrorCallback(error_callback);
-    if (!glfwInit()) {
-        exit(EXIT_FAILURE);
-    }
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    window = glfwCreateWindow(width, height, "Sample OpenGL 3.3 Application", NULL, NULL);
-
-    if (!window) {
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
-
-    glfwMakeContextCurrent(window);
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
-    glfwSwapInterval( 1 );
-
-    /* --- register callbacks with GLFW --- */
-
-    /* Register function to handle window resizes */
-    /* With Retina display on Mac OS X GLFW's FramebufferSize
-     is different from WindowSize */
-    glfwSetFramebufferSizeCallback(window, reshapeWindow);
-    glfwSetWindowSizeCallback(window, reshapeWindow);
-
-    /* Register function to handle window close */
-    glfwSetWindowCloseCallback(window, quit);
-
-    /* Register function to handle keyboard input */
-    glfwSetKeyCallback(window, keyboard);      // general keyboard input
-    glfwSetCharCallback(window, keyboardChar);  // simpler specific character handling
-
-    /* Register function to handle mouse click */
-    glfwSetMouseButtonCallback(window, mouseButton);  // mouse button clicks
-
-    return window;
-}
+#include "objects.cpp"
+#include "draw.cpp"
 
 /* Initialize the OpenGL rendering properties */
 /* Add all the models to be created here */
@@ -649,29 +71,40 @@ void initGL (GLFWwindow* window, int width, int height)
     /* Objects should be created before any other gl function and shaders */
 	// Create the models
 	//createTriangle (); // Generate the VAO, VBOs, vertices data & copy into the array buffer
-  int i,j,k;
+  int i,j,k,he;
   int c = 0;
   for(k=0;k<10;k++){
-  for(i = 0;i<5;i++){
-  int he = rand()%40 ;
-  if(c != 56 && c != 36 && c != 28)
-	 cube_obj[c].cube = createCube(2 + i*15,2,2 - k*15,15,15,he);
-   c++;
+  for(i = -5;i<5;i++){
+  // if(k == 4 && i == 0)
+  he = rand()%40 ;
+  // else
+  // he = 0;
+  cube cube_object = createCube(2 + i*15,2,2 - k*15,15,15,he);
+  cube_object.height = he;
+  height_mat[k][i] = he;
+  cube_vec.push_back(cube_object);
  }
  }
-  for(k=0;k<10;k++){
-  for(int j=1;j<=5;j++,i++){
-    int he = rand()%40;
-    if(c != 56 && c != 36 && c != 28)
-    cube_obj[c].cube = createCube(2 - j*15,2,2 - k*15,15,15,he);
-    c++;
-    }
-  }
+  // for(k=0;k<10;k++){
+  // for(int j=1;j<=5;j++,i++){
+  //   int he = rand()%40;
+  //   int toss = rand()%2;
+  //   if(toss == 0)
+  //   {
+  //     cube cube_object = createCube(2 - j*15,2,2 - k*15,15,15,he);
+  //     cube_object.height = he;
+  //     height_mat[k][j] = he;
+  //     cube_vec.push_back(cube_object);
+  //   }
+  //   else
+  //     height_mat[k][j] = 0;
+  //   }
+  // }
   // for(i = 0;i<5;i++)
   // 	border_obj[i].border = createBorder(2 + i*15,2,2,15,15,15);
   // for(j=1;j<=5;j++,i++)
   //   border_obj[i].border = createBorder(2 - j*15,2,2,15,15,15);
-  createPlayer(0,45,-40,10,10,10);
+  createPlayer(2,2,-58,15,15,15);
 
 	// Create and compile our GLSL program from the shaders
 	programID = LoadShaders( "Sample_GL.vert", "Sample_GL.frag" );
@@ -696,13 +129,13 @@ void initGL (GLFWwindow* window, int width, int height)
 
 int main (int argc, char** argv)
 {
-	int width = 1000;
-	int height = 1000;
+
   srand(time(NULL));
 
-    GLFWwindow* window = initGLFW(width, height);
 
-	initGL (window, width, height);
+
+  window = initGLFW(width, wheight);
+	initGL (window, width, wheight);
 
     double last_update_time = glfwGetTime(), current_time;
 
@@ -719,8 +152,17 @@ int main (int argc, char** argv)
 
         // Control based on time (Time based transformation like 5 degrees rotation every 0.5s)
         current_time = glfwGetTime(); // Time in seconds
-        if ((current_time - last_update_time) >= 0.5) { // atleast 0.5s elapsed since last frame
+        if ((current_time - last_update_time) >= 0.1) { // atleast 0.5s elapsed since last frame
             // do something every 0.5 seconds ..
+            if(factor >= 30)
+              dir = -1;
+            if(factor <= -30)
+              dir = 1;
+            if(dir == 1)
+              factor += 5;
+            else
+              factor -= 5;
+
             last_update_time = current_time;
         }
     }
