@@ -17,18 +17,6 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
 		            a -= 0.2;
                 // do something ..
                 break;
-            case GLFW_KEY_A:
-                q -= 1;
-                break;
-            case GLFW_KEY_D:
-                q += 1;
-                break;
-           case GLFW_KEY_W:
-                w -= 1;
-                break;
-           case GLFW_KEY_S:
-              w += 1;
-              break;
             default:
                 break;
         }
@@ -42,6 +30,22 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
               if(a != 17)
                 a = 17;
                 else a = 2.8;
+                break;
+          case GLFW_KEY_A:
+                q -= 15;
+                x_axis = -1;
+                break;
+          case GLFW_KEY_D:
+                q += 15;
+                x_axis = +1;
+                break;
+          case GLFW_KEY_W:
+                w -= 15;
+                y_axis = +1;
+                break;
+          case GLFW_KEY_S:
+                w += 15;
+                y_axis = -1;
                 break;
             default:
                 break;
